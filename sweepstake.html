@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Digital · World Cup 2026 Sweepstake</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #1a6b3c;
+    --green-light: #e8f5ee;
+    --green-dark: #0f4227;
+    --gold: #c9930a;
+    --gold-light: #fdf3dc;
+    --red: #c9340d;
+    --red-light: #fdeee9;
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.2);
+    --text: #1a1a1a;
+    --text-2: #555;
+    --text-3: #888;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.5; }
+  a { color: var(--green); }
+
+  /* Layout */
+  .shell { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* Header */
+  .site-header { background: var(--green-dark); color: #fff; padding: 20px 0; margin-bottom: 28px; }
+  .site-header .inner { max-width: 900px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .logo { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo span { opacity: 0.65; font-weight: 400; font-size: 15px; margin-left: 8px; }
+  .header-meta { font-size: 13px; opacity: 0.7; }
+
+  /* Stats bar */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 24px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 600; color: var(--text); }
+  .stat-val.green { color: var(--green); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+  .tab-btn { padding: 9px 18px; font-size: 14px; font-weight: 500; background: none; border: none; cursor: pointer; color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Cards / grid */
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .team-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; display: flex; align-items: center; gap: 10px; transition: opacity 0.2s; }
+  .team-card.alive { border-left: 3px solid var(--green); }
+  .team-card.eliminated { opacity: 0.4; }
+  .flag { font-size: 24px; flex-shrink: 0; line-height: 1; }
+  .tc-body { min-width: 0; flex: 1; }
+  .tc-team { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc-owner { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc-group { font-size: 11px; color: var(--text-3); }
+  .tc-status { font-size: 11px; margin-top: 2px; font-weight: 500; }
+  .alive-tag { color: var(--green); }
+  .elim-tag { color: var(--text-3); }
+  .unassigned { font-style: italic; color: var(--text-3); }
+
+  /* Leaderboard */
+  .lb { display: flex; flex-direction: column; gap: 6px; }
+  .lb-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+  .lb-row.still-in { border-left: 3px solid var(--green); }
+  .lb-rank { font-size: 14px; font-weight: 600; color: var(--text-3); width: 22px; flex-shrink: 0; }
+  .lb-name { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+  .lb-teams { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+  .lb-alive-teams { font-size: 12px; color: var(--green); font-weight: 500; margin-top: 1px; }
+  .lb-badge { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .badge-in { color: var(--green); }
+  .badge-out { color: var(--text-3); }
+
+  /* Matches */
+  .match-section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: 20px 0 8px; }
+  .match-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 7px; }
+  .match-meta { font-size: 11px; color: var(--text-3); margin-bottom: 7px; display: flex; align-items: center; gap: 8px; }
+  .live-dot { background: var(--red); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 20px; letter-spacing: 0.04em; }
+  .match-body { display: flex; align-items: center; gap: 8px; }
+  .match-team { flex: 1; min-width: 0; }
+  .match-team.away { text-align: right; }
+  .mt-name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .match-team.away .mt-name { flex-direction: row-reverse; }
+  .mt-flag { font-size: 18px; flex-shrink: 0; }
+  .mt-owner { font-size: 11px; color: var(--green); font-weight: 500; margin-top: 2px; }
+  .match-team.away .mt-owner { text-align: right; }
+  .match-score { font-size: 20px; font-weight: 700; min-width: 56px; text-align: center; flex-shrink: 0; }
+  .match-score.live { color: var(--red); }
+  .match-score.upcoming { font-size: 13px; color: var(--text-3); font-weight: 400; }
+
+  /* Draw tab */
+  .draw-section { max-width: 600px; margin: 0 auto; }
+  .draw-intro { font-size: 14px; color: var(--text-2); margin-bottom: 20px; line-height: 1.6; }
+  .participants-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .p-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 13px; color: var(--text-2); }
+  .add-row { display: flex; gap: 8px; margin-bottom: 24px; }
+  .add-row input { flex: 1; padding: 9px 12px; font-size: 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+  .add-row input:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(26,107,60,0.15); }
+  .btn { padding: 9px 20px; font-size: 14px; font-weight: 600; border: none; border-radius: var(--radius-sm); cursor: pointer; }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-dark); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); }
+  .btn-secondary:hover { background: var(--bg); }
+  .btn-danger { background: var(--red-light); color: var(--red); border: 1px solid rgba(201,52,13,0.2); }
+  .btn-danger:hover { background: #f9d9d0; }
+  .draw-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .draw-result { margin-top: 20px; }
+  .draw-result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .dr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; }
+  .dr-name { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .dr-teams { font-size: 12px; color: var(--text-2); }
+
+  /* Share / status bar */
+  .status-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .status-label { font-size: 13px; color: var(--text-2); }
+  .status-ok { color: var(--green); font-weight: 500; }
+  .status-err { color: var(--red); }
+  .status-warn { color: var(--gold); }
+  .share-box { background: var(--green-light); border: 1px solid rgba(26,107,60,0.2); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; }
+  .share-title { font-size: 13px; font-weight: 600; color: var(--green-dark); margin-bottom: 8px; }
+  .share-url-row { display: flex; gap: 8px; }
+  .share-url { flex: 1; padding: 8px 10px; font-size: 12px; font-family: monospace; border: 1px solid rgba(26,107,60,0.3); border-radius: var(--radius-sm); background: #fff; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-btn { padding: 8px 14px; font-size: 13px; font-weight: 600; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; }
+  .copy-btn:hover { background: var(--green-dark); }
+  .copy-btn.copied { background: #555; }
+
+  /* Filter row */
+  .filter-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-btn { padding: 5px 13px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--text-3); cursor: pointer; }
+  .filter-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+  .filter-search { padding: 5px 11px; font-size: 13px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--text); outline: none; margin-left: auto; }
+
+  /* Locked notice */
+  .locked-notice { background: var(--gold-light); border: 1px solid rgba(201,147,10,0.25); border-radius: var(--radius); padding: 12px 16px; font-size: 13px; color: #7a5800; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+
+  /* API notice */
+  .api-notice { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+
+  /* Misc */
+  .section-head { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 10px; }
+  .empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 14px; }
+  .refresh-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .refresh-btn { padding: 6px 14px; font-size: 12px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-2); font-weight: 500; }
+  .refresh-btn:hover { color: var(--text); }
+  .api-ts { font-size: 12px; color: var(--text-3); }
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 540px) {
+    .team-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .logo span { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="inner">
+    <div class="logo">⚽ WC2026 Sweepstake <span>Public Digital</span></div>
+    <div class="header-meta" id="api-status-header"><span class="spinner"></span> Connecting...</div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <div class="stats" id="stats-bar">
+    <div class="stat"><div class="stat-label">Participants</div><div class="stat-val" id="s-participants">36</div></div>
+    <div class="stat"><div class="stat-label">Teams drawn</div><div class="stat-val" id="s-drawn">0 / 48</div></div>
+    <div class="stat"><div class="stat-label">Still alive</div><div class="stat-val green" id="s-alive">—</div></div>
+    <div class="stat"><div class="stat-label">Matches played</div><div class="stat-val" id="s-matches">—</div></div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" onclick="switchTab('draw')" role="tab">Draw</button>
+    <button class="tab-btn" onclick="switchTab('board')" role="tab">Board</button>
+    <button class="tab-btn" onclick="switchTab('matches')" role="tab">Matches</button>
+    <button class="tab-btn" onclick="switchTab('leaderboard')" role="tab">Leaderboard</button>
+  </nav>
+
+  <!-- DRAW TAB -->
+  <div id="tab-draw" class="tab-panel active">
+    <div class="draw-section">
+
+      <div id="draw-locked-notice" class="locked-notice" style="display:none">
+        🔒 The draw is locked. Share the link below with your colleagues.
+      </div>
+
+      <div id="share-box" class="share-box" style="display:none">
+        <div class="share-title">Share this sweepstake</div>
+        <div class="share-url-row">
+          <input class="share-url" id="share-url-input" readonly value="" />
+          <button class="copy-btn" id="copy-btn" onclick="copyShareUrl()">Copy link</button>
+        </div>
+        <div style="font-size:12px;color:var(--green-dark);margin-top:8px;opacity:0.8">Anyone with this link sees the draw and live results — no login needed.</div>
+      </div>
+
+      <div id="pre-lock-area">
+        <p class="draw-intro">48 teams will be randomly assigned across 36 participants. Most people get 1 team, a few get 2. You can re-run the draw as many times as you like before locking it.</p>
+
+        <div class="section-head">Participants (<span id="p-count">36</span>)</div>
+        <div class="participants-chips" id="chips"></div>
+
+        <div class="add-row">
+          <input type="text" id="new-name" placeholder="Add a participant..." onkeydown="if(event.key==='Enter')addParticipant()" />
+          <button class="btn btn-secondary" onclick="addParticipant()">+ Add</button>
+        </div>
+
+        <div class="draw-actions">
+          <button class="btn btn-primary" id="draw-btn" onclick="runDraw()">🎲 Run the draw</button>
+          <button class="btn btn-secondary" id="redraw-btn" onclick="runDraw()" style="display:none">↻ Redraw</button>
+          <button class="btn btn-primary" id="lock-btn" onclick="lockDraw()" style="display:none;background:var(--green-dark)">🔒 Lock draw</button>
+        </div>
+
+        <div id="draw-preview"></div>
+      </div>
+
+      <div id="post-lock-area" style="display:none">
+        <div class="draw-actions" style="margin-top:8px">
+          <button class="btn btn-danger" onclick="confirmReset()">Reset draw</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BOARD TAB -->
+  <div id="tab-board" class="tab-panel">
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All 48 teams</button>
+      <button class="filter-btn" onclick="setFilter('alive',this)">Still in</button>
+      <button class="filter-btn" onclick="setFilter('out',this)">Eliminated</button>
+      <input class="filter-search" id="board-search" placeholder="Search..." oninput="renderBoard()" />
+    </div>
+    <div id="board-grid" class="team-grid">
+      <div class="empty">Run and lock the draw to see the board.</div>
+    </div>
+  </div>
+
+  <!-- MATCHES TAB -->
+  <div id="tab-matches" class="tab-panel">
+    <div class="refresh-row">
+      <button class="refresh-btn" onclick="fetchMatches()">↻ Refresh</button>
+      <span class="api-ts" id="api-ts"></span>
+    </div>
+    <div id="matches-content"><div class="empty"><span class="spinner"></span> Loading match data...</div></div>
+  </div>
+
+  <!-- LEADERBOARD TAB -->
+  <div id="tab-leaderboard" class="tab-panel">
+    <div id="lb-content"><div class="empty">Run and lock the draw to see the leaderboard.</div></div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+const TEAMS = [
+  {name:"Mexico",code:"MEX",flag:"🇲🇽",group:"A"},
+  {name:"South Africa",code:"RSA",flag:"🇿🇦",group:"A"},
+  {name:"South Korea",code:"KOR",flag:"🇰🇷",group:"A"},
+  {name:"Czech Republic",code:"CZE",flag:"🇨🇿",group:"A"},
+  {name:"Canada",code:"CAN",flag:"🇨🇦",group:"B"},
+  {name:"Switzerland",code:"SUI",flag:"🇨🇭",group:"B"},
+  {name:"Qatar",code:"QAT",flag:"🇶🇦",group:"B"},
+  {name:"Bosnia & Herz.",code:"BIH",flag:"🇧🇦",group:"B"},
+  {name:"Brazil",code:"BRA",flag:"🇧🇷",group:"C"},
+  {name:"Morocco",code:"MAR",flag:"🇲🇦",group:"C"},
+  {name:"Haiti",code:"HAI",flag:"🇭🇹",group:"C"},
+  {name:"Scotland",code:"SCO",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",group:"C"},
+  {name:"USA",code:"USA",flag:"🇺🇸",group:"D"},
+  {name:"Paraguay",code:"PAR",flag:"🇵🇾",group:"D"},
+  {name:"Australia",code:"AUS",flag:"🇦🇺",group:"D"},
+  {name:"Turkiye",code:"TUR",flag:"🇹🇷",group:"D"},
+  {name:"Germany",code:"GER",flag:"🇩🇪",group:"E"},
+  {name:"Curaçao",code:"CUW",flag:"🇨🇼",group:"E"},
+  {name:"Ivory Coast",code:"CIV",flag:"🇨🇮",group:"E"},
+  {name:"Ecuador",code:"ECU",flag:"🇪🇨",group:"E"},
+  {name:"Netherlands",code:"NED",flag:"🇳🇱",group:"F"},
+  {name:"Japan",code:"JPN",flag:"🇯🇵",group:"F"},
+  {name:"Tunisia",code:"TUN",flag:"🇹🇳",group:"F"},
+  {name:"Sweden",code:"SWE",flag:"🇸🇪",group:"F"},
+  {name:"Belgium",code:"BEL",flag:"🇧🇪",group:"G"},
+  {name:"Egypt",code:"EGY",flag:"🇪🇬",group:"G"},
+  {name:"Iran",code:"IRN",flag:"🇮🇷",group:"G"},
+  {name:"New Zealand",code:"NZL",flag:"🇳🇿",group:"G"},
+  {name:"Spain",code:"ESP",flag:"🇪🇸",group:"H"},
+  {name:"Cape Verde",code:"CPV",flag:"🇨🇻",group:"H"},
+  {name:"Saudi Arabia",code:"KSA",flag:"🇸🇦",group:"H"},
+  {name:"Uruguay",code:"URU",flag:"🇺🇾",group:"H"},
+  {name:"France",code:"FRA",flag:"🇫🇷",group:"I"},
+  {name:"Senegal",code:"SEN",flag:"🇸🇳",group:"I"},
+  {name:"Norway",code:"NOR",flag:"🇳🇴",group:"I"},
+  {name:"Iraq",code:"IRQ",flag:"🇮🇶",group:"I"},
+  {name:"Argentina",code:"ARG",flag:"🇦🇷",group:"J"},
+  {name:"Algeria",code:"ALG",flag:"🇩🇿",group:"J"},
+  {name:"Austria",code:"AUT",flag:"🇦🇹",group:"J"},
+  {name:"Jordan",code:"JOR",flag:"🇯🇴",group:"J"},
+  {name:"Portugal",code:"POR",flag:"🇵🇹",group:"K"},
+  {name:"Colombia",code:"COL",flag:"🇨🇴",group:"K"},
+  {name:"Uzbekistan",code:"UZB",flag:"🇺🇿",group:"K"},
+  {name:"Congo DR",code:"COD",flag:"🇨🇩",group:"K"},
+  {name:"England",code:"ENG",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",group:"L"},
+  {name:"Croatia",code:"CRO",flag:"🇭🇷",group:"L"},
+  {name:"Ghana",code:"GHA",flag:"🇬🇭",group:"L"},
+  {name:"Panama",code:"PAN",flag:"🇵🇦",group:"L"},
+];
+
+const DEFAULT_PARTICIPANTS = [
+  "Gem Atkinson","Simon Foot","Caitlin Evans","Courtney Theys","Alex","Diane PW",
+  "Nicola Savage","Ben Terrett","Adina Kuse","Emiola Osho","Adriana","Rob Miller",
+  "Catarina","Holly Roscoe","Sarah Slate","Robin Watts","Tom Loosemore","Lewis Nyman",
+  "Andrew","Amy McNichol","Nic Ward","Matt Harrington","Kassim","Angie Kenny",
+  "Gonzalo","Lauren Mc","Bill Singh","Amanda Smith","Lara Bird","Tess","Shereen",
+  "Ryan Hussey","Connie","Stef M","Emma Gawen","Mark W"
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  participants: [...DEFAULT_PARTICIPANTS],
+  draw: null,       // {name: [code, ...]}
+  locked: false,
+  eliminated: [],   // array of team codes
+  boardFilter: 'all'
+};
+
+// ── URL state encode/decode ────────────────────────────────────────────────
+function encodeState() {
+  const payload = {
+    p: state.participants,
+    d: state.draw,
+    l: state.locked,
+    e: state.eliminated
+  };
+  return btoa(encodeURIComponent(JSON.stringify(payload)));
+}
+
+function decodeState(encoded) {
+  try {
+    return JSON.parse(decodeURIComponent(atob(encoded)));
+  } catch(e) { return null; }
+}
+
+function buildShareUrl() {
+  const base = window.location.href.split('?')[0].split('#')[0];
+  return base + '?s=' + encodeState();
+}
+
+function copyShareUrl() {
+  const url = buildShareUrl();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 2500);
+  });
+  document.getElementById('share-url-input').value = buildShareUrl();
+}
+
+function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const s = params.get('s');
+  if (!s) return false;
+  const parsed = decodeState(s);
+  if (!parsed) return false;
+  state.participants = parsed.p || state.participants;
+  state.draw = parsed.d || null;
+  state.locked = parsed.l || false;
+  state.eliminated = parsed.e || [];
+  return true;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function teamByCode(code) { return TEAMS.find(t => t.code === code); }
+
+function ownerMap() {
+  const map = {};
+  if (state.draw) {
+    Object.entries(state.draw).forEach(([person, teams]) => {
+      teams.forEach(code => map[code] = person);
+    });
+  }
+  return map;
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['draw','board','matches','leaderboard'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'board') renderBoard();
+  if (name === 'leaderboard') renderLeaderboard();
+  if (name === 'matches') fetchMatches();
+}
+
+// ── Draw tab ───────────────────────────────────────────────────────────────
+function renderChips() {
+  const c = document.getElementById('chips');
+  c.innerHTML = state.participants.map(p => `<span class="p-chip">${p}</span>`).join('');
+  document.getElementById('p-count').textContent = state.participants.length;
+  document.getElementById('s-participants').textContent = state.participants.length;
+}
+
+function addParticipant() {
+  const inp = document.getElementById('new-name');
+  const name = inp.value.trim();
+  if (!name || state.participants.includes(name)) { inp.value = ''; return; }
+  state.participants.push(name);
+  if (state.locked && state.draw) state.draw[name] = [];
+  inp.value = '';
+  renderChips();
+  if (state.locked) { renderBoard(); renderLeaderboard(); updateShareUrl(); }
+}
+
+function runDraw() {
+  const teams = shuffle(TEAMS.map(t => t.code));
+  const ps = state.participants;
+  const draw = {};
+  ps.forEach(p => draw[p] = []);
+  teams.forEach((code, i) => draw[ps[i % ps.length]].push(code));
+  state.draw = draw;
+  renderDrawPreview();
+  document.getElementById('draw-btn').style.display = 'none';
+  document.getElementById('redraw-btn').style.display = '';
+  document.getElementById('lock-btn').style.display = '';
+}
+
+function renderDrawPreview() {
+  const el = document.getElementById('draw-preview');
+  if (!state.draw) { el.innerHTML = ''; return; }
+  const html = '<div class="section-head" style="margin-top:16px">Preview</div>'
+    + '<div class="draw-result-grid">'
+    + state.participants.map(p => {
+        const teams = (state.draw[p] || []).map(code => {
+          const t = teamByCode(code);
+          return t ? `${t.flag} ${t.name}` : code;
+        }).join(', ');
+        return `<div class="dr-card"><div class="dr-name">${p}</div><div class="dr-teams">${teams || '—'}</div></div>`;
+      }).join('')
+    + '</div>';
+  el.innerHTML = html;
+}
+
+function lockDraw() {
+  if (!state.draw) return;
+  state.locked = true;
+  document.getElementById('pre-lock-area').style.display = 'none';
+  document.getElementById('post-lock-area').style.display = '';
+  document.getElementById('draw-locked-notice').style.display = '';
+  document.getElementById('share-box').style.display = '';
+  updateShareUrl();
+  updateStats();
+  renderBoard();
+  renderLeaderboard();
+}
+
+function updateShareUrl() {
+  document.getElementById('share-url-input').value = buildShareUrl();
+}
+
+function confirmReset() {
+  if (!confirm('Reset the draw? This cannot be undone.')) return;
+  state.draw = null;
+  state.locked = false;
+  state.eliminated = [];
+  document.getElementById('pre-lock-area').style.display = '';
+  document.getElementById('post-lock-area').style.display = 'none';
+  document.getElementById('draw-locked-notice').style.display = 'none';
+  document.getElementById('share-box').style.display = 'none';
+  document.getElementById('draw-btn').style.display = '';
+  document.getElementById('redraw-btn').style.display = 'none';
+  document.getElementById('lock-btn').style.display = 'none';
+  document.getElementById('draw-preview').innerHTML = '';
+  updateStats();
+  renderBoard();
+  renderLeaderboard();
+}
+
+// ── Board ──────────────────────────────────────────────────────────────────
+let boardFilter = 'all';
+
+function setFilter(f, btn) {
+  boardFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderBoard();
+}
+
+function renderBoard() {
+  const el = document.getElementById('board-grid');
+  if (!state.locked || !state.draw) {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">Run and lock the draw to see the board.</div>';
+    return;
+  }
+  const owners = ownerMap();
+  const q = (document.getElementById('board-search')?.value || '').toLowerCase();
+  let teams = TEAMS;
+  if (boardFilter === 'alive') teams = teams.filter(t => !state.eliminated.includes(t.code));
+  if (boardFilter === 'out') teams = teams.filter(t => state.eliminated.includes(t.code));
+  if (q) teams = teams.filter(t => t.name.toLowerCase().includes(q) || (owners[t.code]||'').toLowerCase().includes(q));
+
+  el.innerHTML = teams.map(t => {
+    const alive = !state.eliminated.includes(t.code);
+    const owner = owners[t.code];
+    return `<div class="team-card ${alive ? 'alive' : 'eliminated'}">
+      <div class="flag">${t.flag}</div>
+      <div class="tc-body">
+        <div class="tc-team">${t.name}</div>
+        <div class="tc-owner ${owner ? '' : 'unassigned'}">${owner || 'Unassigned'}</div>
+        <div class="tc-group">Group ${t.group}</div>
+        <div class="tc-status ${alive ? 'alive-tag' : 'elim-tag'}">${alive ? '✓ Still in' : '✗ Eliminated'}</div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty" style="grid-column:1/-1">No teams match.</div>';
+}
+
+// ── Leaderboard ────────────────────────────────────────────────────────────
+function renderLeaderboard() {
+  const el = document.getElementById('lb-content');
+  if (!state.locked || !state.draw) {
+    el.innerHTML = '<div class="empty">Run and lock the draw to see the leaderboard.</div>';
+    return;
+  }
+  const rows = state.participants.map(p => {
+    const teams = state.draw[p] || [];
+    const alive = teams.filter(c => !state.eliminated.includes(c));
+    return { name: p, teams, alive };
+  }).sort((a, b) => b.alive.length - a.alive.length || a.name.localeCompare(b.name));
+
+  el.innerHTML = '<div class="lb">' + rows.map((r, i) => {
+    const teamStr = r.teams.map(c => { const t = teamByCode(c); return t ? `${t.flag} ${t.name}` : c; }).join(' · ');
+    const aliveStr = r.alive.map(c => { const t = teamByCode(c); return t ? `${t.flag} ${t.name}` : c; }).join(' · ');
+    return `<div class="lb-row ${r.alive.length > 0 ? 'still-in' : ''}">
+      <div class="lb-rank">${i + 1}</div>
+      <div style="flex:1;min-width:0">
+        <div class="lb-name">${r.name}</div>
+        <div class="lb-teams">${teamStr || '—'}</div>
+        ${r.alive.length > 0 ? `<div class="lb-alive-teams">Still alive: ${aliveStr}</div>` : ''}
+      </div>
+      <div class="lb-badge ${r.alive.length > 0 ? 'badge-in' : 'badge-out'}">${r.alive.length > 0 ? r.alive.length + ' team' + (r.alive.length > 1 ? 's' : '') + ' in' : 'Out'}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('s-participants').textContent = state.participants.length;
+  if (state.locked && state.draw) {
+    const total = Object.values(state.draw).flat().length;
+    document.getElementById('s-drawn').textContent = total + ' / 48';
+    const aliveTeams = TEAMS.filter(t => !state.eliminated.includes(t.code));
+    const owners = ownerMap();
+    const stillInPeople = new Set(aliveTeams.map(t => owners[t.code]).filter(Boolean));
+    document.getElementById('s-alive').textContent = stillInPeople.size + ' people';
+  } else {
+    document.getElementById('s-drawn').textContent = '0 / 48';
+    document.getElementById('s-alive').textContent = '—';
+  }
+}
+
+// ── Matches / API ──────────────────────────────────────────────────────────
+const API = 'https://worldcup26.ir';
+const STAGE_LABELS = {
+  group: 'Group stage', r32: 'Round of 32', r16: 'Round of 16',
+  qf: 'Quarter-finals', sf: 'Semi-finals', third: 'Third place', final: 'Final'
+};
+const STAGE_ORDER = ['group','r32','r16','qf','sf','third','final'];
+
+function teamByApiName(name) {
+  if (!name) return null;
+  const n = name.toLowerCase().trim();
+  return TEAMS.find(t =>
+    t.name.toLowerCase() === n ||
+    t.name.toLowerCase().includes(n) ||
+    n.includes(t.name.toLowerCase()) ||
+    t.code.toLowerCase() === n
+  ) || null;
+}
+
+async function fetchMatches() {
+  const el = document.getElementById('matches-content');
+  const ts = document.getElementById('api-ts');
+  const header = document.getElementById('api-status-header');
+  el.innerHTML = '<div class="empty"><span class="spinner"></span> Loading...</div>';
+  try {
+    const res = await fetch(API + '/get/games');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const games = await res.json();
+
+    // Detect eliminated teams from knockout results
+    const eliminated = new Set(state.eliminated);
+    games.forEach(g => {
+      if (!g.result || g.stage === 'group') return;
+      const hs = parseInt(g.result?.home ?? g.homeScore ?? -1);
+      const as_ = parseInt(g.result?.away ?? g.awayScore ?? -1);
+      if (hs < 0 || as_ < 0) return;
+      const ht = teamByApiName(g.homeTeam?.name_en || g.home_team || g.homeTeam);
+      const at = teamByApiName(g.awayTeam?.name_en || g.away_team || g.awayTeam);
+      if (ht && at) {
+        if (hs > as_) eliminated.add(at.code);
+        else if (as_ > hs) eliminated.add(ht.code);
+      }
+    });
+    state.eliminated = [...eliminated];
+
+    const played = games.filter(g => g.status === 'finished' || g.status === 'completed' || g.played).length;
+    document.getElementById('s-matches').textContent = played || '—';
+
+    renderMatchList(games);
+    renderBoard();
+    renderLeaderboard();
+    updateStats();
+
+    const now = new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    ts.textContent = 'Updated ' + now;
+    header.innerHTML = '<span style="color:#9fe3bc">✓ Live · ' + now + '</span>';
+  } catch(e) {
+    header.innerHTML = '<span style="color:#f4a98a">API unavailable</span>';
+    ts.textContent = '';
+    el.innerHTML = `<div class="api-notice">
+      <strong>Live match data unavailable right now.</strong><br>
+      The API at <code>worldcup26.ir</code> may be temporarily down or rate-limiting requests.
+      Try refreshing in a moment. Match results can also be entered manually by resetting and 
+      re-locking the draw with updated eliminated teams.<br><br>
+      <a href="https://worldcup26.ir/api-docs" target="_blank">API docs →</a>
+    </div>`;
+  }
+}
+
+function renderMatchList(games) {
+  const el = document.getElementById('matches-content');
+  const owners = ownerMap();
+
+  // Group by stage
+  const byStage = {};
+  games.forEach(g => {
+    const s = (g.stage || g.type || 'group').toLowerCase().replace(' ','');
+    if (!byStage[s]) byStage[s] = [];
+    byStage[s].push(g);
+  });
+
+  let html = '';
+  const stagesFound = STAGE_ORDER.filter(s => byStage[s] && byStage[s].some(g =>
+    g.status === 'finished' || g.status === 'live' || g.status === 'completed' || g.played
+  ));
+  if (stagesFound.length === 0) {
+    // Show upcoming
+    const upcoming = games.slice(0, 12);
+    html = '<div class="match-section-title">Upcoming fixtures</div>';
+    html += upcoming.map(g => renderMatchCard(g, owners)).join('');
+  } else {
+    stagesFound.forEach(s => {
+      const relevant = byStage[s] || [];
+      html += `<div class="match-section-title">${STAGE_LABELS[s] || s}</div>`;
+      html += relevant.map(g => renderMatchCard(g, owners)).join('');
+    });
+  }
+  el.innerHTML = html || '<div class="empty">No match data available yet.</div>';
+}
+
+function renderMatchCard(g, owners) {
+  const homeName = g.homeTeam?.name_en || g.home_team || g.homeTeam || '?';
+  const awayName = g.awayTeam?.name_en || g.away_team || g.awayTeam || '?';
+  const ht = teamByApiName(homeName);
+  const at = teamByApiName(awayName);
+  const hFlag = ht ? ht.flag : '🏳️';
+  const aFlag = at ? at.flag : '🏳️';
+  const hCode = ht?.code, aCode = at?.code;
+  const hOwner = hCode ? owners[hCode] : null;
+  const aOwner = aCode ? owners[aCode] : null;
+  const isLive = g.status === 'live' || g.status === 'in_play';
+  const isFinished = g.status === 'finished' || g.status === 'completed' || g.played;
+  const hs = g.result?.home ?? g.homeScore ?? g.score?.home ?? null;
+  const as_ = g.result?.away ?? g.awayScore ?? g.score?.away ?? null;
+  const hasScore = hs !== null && as_ !== null && isFinished;
+  const dateStr = g.date || g.utcDate || g.datetime || '';
+  const dateFormatted = dateStr ? new Date(dateStr).toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+  const scoreHtml = hasScore
+    ? `<div class="match-score ${isLive ? 'live' : ''}">${hs} – ${as_}</div>`
+    : `<div class="match-score upcoming">${dateFormatted || 'TBC'}</div>`;
+
+  return `<div class="match-card">
+    <div class="match-meta">${dateFormatted ? dateFormatted : ''}${isLive ? ' <span class="live-dot">LIVE</span>' : ''}</div>
+    <div class="match-body">
+      <div class="match-team">
+        <div class="mt-name"><span class="mt-flag">${hFlag}</span>${homeName}</div>
+        ${hOwner ? `<div class="mt-owner">${hOwner}</div>` : ''}
+      </div>
+      ${scoreHtml}
+      <div class="match-team away">
+        <div class="mt-name">${awayName}<span class="mt-flag">${aFlag}</span></div>
+        ${aOwner ? `<div class="mt-owner">${aOwner}</div>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  const fromUrl = loadFromUrl();
+  renderChips();
+  updateStats();
+
+  if (state.locked) {
+    document.getElementById('pre-lock-area').style.display = 'none';
+    document.getElementById('post-lock-area').style.display = '';
+    document.getElementById('draw-locked-notice').style.display = '';
+    document.getElementById('share-box').style.display = '';
+    updateShareUrl();
+    renderBoard();
+    renderLeaderboard();
+  }
+
+  // Auto-load matches
+  fetchMatches();
+})();
+</script>
+</body>
+</html>
