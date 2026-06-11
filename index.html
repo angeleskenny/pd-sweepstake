@@ -172,7 +172,7 @@
 <div class="shell">
 
   <div class="stats" id="stats-bar">
-    <div class="stat"><div class="stat-label">Participants</div><div class="stat-val" id="s-participants">36</div></div>
+    <div class="stat"><div class="stat-label">Participants</div><div class="stat-val" id="s-participants">49</div></div>
     <div class="stat"><div class="stat-label">Teams drawn</div><div class="stat-val" id="s-drawn">0 / 48</div></div>
     <div class="stat"><div class="stat-label">Still alive</div><div class="stat-val green" id="s-alive">—</div></div>
     <div class="stat"><div class="stat-label">Matches played</div><div class="stat-val" id="s-matches">—</div></div>
@@ -318,7 +318,9 @@ const DEFAULT_PARTICIPANTS = [
   "Catarina","Holly Roscoe","Sarah Slate","Robin Watts","Tom Loosemore","Lewis Nyman",
   "Andrew","Amy McNichol","Nic Ward","Matt Harrington","Kassim","Angie Kenny",
   "Gonzalo","Lauren Mc","Bill Singh","Amanda Smith","Lara Bird","Tess","Shereen",
-  "Ryan Hussey","Connie","Stef M","Emma Gawen","Mark W"
+  "Ryan Hussey","Connie","Stef M","Emma Gawen","Mark W","Alistair Ruff","Cate",
+  "Kerrie Wilkins","Philippa Newis","Kate Marks","Adam Maddison","Mark Webster",
+  "Iain Broome","Ignacia Orellana","Matt Sheret","Cleo Little","Faye Benfield","Lawrence"
 ];
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -430,11 +432,27 @@ function addParticipant() {
 }
 
 function runDraw() {
-  const teams = shuffle(TEAMS.map(t => t.code));
   const ps = state.participants;
+  const teamCodes = TEAMS.map(t => t.code);
   const draw = {};
   ps.forEach(p => draw[p] = []);
-  teams.forEach((code, i) => draw[ps[i % ps.length]].push(code));
+
+  // Every participant gets exactly 1 team. If participants > teams,
+  // shuffle extra participants and pair them with randomly chosen teams.
+  const shuffledTeams = shuffle(teamCodes);
+  const shuffledPs = shuffle([...ps]);
+
+  // First 48 (or fewer) participants get one unique team each
+  shuffledTeams.forEach((code, i) => {
+    if (shuffledPs[i]) draw[shuffledPs[i]].push(code);
+  });
+
+  // Any remaining participants (index 48+) share a randomly picked team
+  for (let i = teamCodes.length; i < ps.length; i++) {
+    const shared = shuffledTeams[Math.floor(Math.random() * shuffledTeams.length)];
+    draw[shuffledPs[i]].push(shared);
+  }
+
   state.draw = draw;
   renderDrawPreview();
   document.getElementById('draw-btn').style.display = 'none';
