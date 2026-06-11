@@ -593,12 +593,20 @@ function updateStats() {
 }
 
 // ── Matches / API ──────────────────────────────────────────────────────────
-const API = 'https://worldcup26.ir';
+const API = 'https://api.football-data.org/v4';
+const API_TOKEN = '2f36b4710393488daed74bf991846e09';
+const API_HEADERS = { 'X-Auth-Token': API_TOKEN };
+
 const STAGE_LABELS = {
-  group: 'Group stage', r32: 'Round of 32', r16: 'Round of 16',
-  qf: 'Quarter-finals', sf: 'Semi-finals', third: 'Third place', final: 'Final'
+  'GROUP_STAGE': 'Group stage',
+  'LAST_32': 'Round of 32',
+  'LAST_16': 'Round of 16',
+  'QUARTER_FINALS': 'Quarter-finals',
+  'SEMI_FINALS': 'Semi-finals',
+  'THIRD_PLACE': 'Third place',
+  'FINAL': 'Final'
 };
-const STAGE_ORDER = ['group','r32','r16','qf','sf','third','final'];
+const STAGE_ORDER = ['GROUP_STAGE','LAST_32','LAST_16','QUARTER_FINALS','SEMI_FINALS','THIRD_PLACE','FINAL'];
 
 function teamByApiName(name) {
   if (!name) return null;
@@ -617,30 +625,41 @@ async function fetchMatches() {
   const header = document.getElementById('api-status-header');
   el.innerHTML = '<div class="empty"><span class="spinner"></span> Loading...</div>';
   try {
-    const res = await fetch(API + '/get/games');
+    const res = await fetch(API + '/competitions/WC/matches', { headers: API_HEADERS });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const games = await res.json();
+    const data = await res.json();
+    const matches = data.matches || [];
 
     // Detect eliminated teams from knockout results
     const eliminated = new Set(state.eliminated);
-    games.forEach(g => {
-      if (!g.result || g.stage === 'group') return;
-      const hs = parseInt(g.result?.home ?? g.homeScore ?? -1);
-      const as_ = parseInt(g.result?.away ?? g.awayScore ?? -1);
+    matches.forEach(m => {
+      if (m.status !== 'FINISHED') return;
+      if (m.stage === 'GROUP_STAGE') return;
+      const hs = m.score?.fullTime?.home ?? -1;
+      const as_ = m.score?.fullTime?.away ?? -1;
       if (hs < 0 || as_ < 0) return;
-      const ht = teamByApiName(g.homeTeam?.name_en || g.home_team || g.homeTeam);
-      const at = teamByApiName(g.awayTeam?.name_en || g.away_team || g.awayTeam);
+      const ht = teamByApiName(m.homeTeam?.name || m.homeTeam?.shortName);
+      const at = teamByApiName(m.awayTeam?.name || m.awayTeam?.shortName);
       if (ht && at) {
         if (hs > as_) eliminated.add(at.code);
         else if (as_ > hs) eliminated.add(ht.code);
+        // penalties
+        else {
+          const hp = m.score?.penalties?.home ?? -1;
+          const ap = m.score?.penalties?.away ?? -1;
+          if (hp >= 0 && ap >= 0) {
+            if (hp > ap) eliminated.add(at.code);
+            else eliminated.add(ht.code);
+          }
+        }
       }
     });
     state.eliminated = [...eliminated];
 
-    const played = games.filter(g => g.status === 'finished' || g.status === 'completed' || g.played).length;
+    const played = matches.filter(m => m.status === 'FINISHED').length;
     document.getElementById('s-matches').textContent = played || '—';
 
-    renderMatchList(games);
+    renderMatchList(matches);
     renderBoard();
     renderLeaderboard();
     updateStats();
@@ -653,68 +672,66 @@ async function fetchMatches() {
     ts.textContent = '';
     el.innerHTML = `<div class="api-notice">
       <strong>Live match data unavailable right now.</strong><br>
-      The API at <code>worldcup26.ir</code> may be temporarily down or rate-limiting requests.
-      Try refreshing in a moment. Match results can also be entered manually by resetting and 
-      re-locking the draw with updated eliminated teams.<br><br>
-      <a href="https://worldcup26.ir/api-docs" target="_blank">API docs →</a>
+      The football-data.org API may be temporarily down or rate-limiting requests (max 10/min on free tier).
+      Try refreshing in a moment.<br><br>
+      <a href="https://www.football-data.org" target="_blank">football-data.org →</a>
     </div>`;
   }
 }
 
-function renderMatchList(games) {
+function renderMatchList(matches) {
   const el = document.getElementById('matches-content');
   const owners = ownerMap();
 
-  // Group by stage
   const byStage = {};
-  games.forEach(g => {
-    const s = (g.stage || g.type || 'group').toLowerCase().replace(' ','');
+  matches.forEach(m => {
+    const s = m.stage || 'GROUP_STAGE';
     if (!byStage[s]) byStage[s] = [];
-    byStage[s].push(g);
+    byStage[s].push(m);
   });
 
+  // Show finished/live stages first, then upcoming
+  const activeStagess = STAGE_ORDER.filter(s => byStage[s]?.some(m => m.status === 'FINISHED' || m.status === 'IN_PLAY'));
+  const upcomingStages = STAGE_ORDER.filter(s => byStage[s]?.some(m => m.status === 'SCHEDULED' || m.status === 'TIMED'));
+
   let html = '';
-  const stagesFound = STAGE_ORDER.filter(s => byStage[s] && byStage[s].some(g =>
-    g.status === 'finished' || g.status === 'live' || g.status === 'completed' || g.played
-  ));
-  if (stagesFound.length === 0) {
-    // Show upcoming
-    const upcoming = games.slice(0, 12);
-    html = '<div class="match-section-title">Upcoming fixtures</div>';
-    html += upcoming.map(g => renderMatchCard(g, owners)).join('');
-  } else {
-    stagesFound.forEach(s => {
-      const relevant = byStage[s] || [];
-      html += `<div class="match-section-title">${STAGE_LABELS[s] || s}</div>`;
-      html += relevant.map(g => renderMatchCard(g, owners)).join('');
-    });
-  }
+  const stagesToShow = activeStagess.length > 0 ? activeStagess : upcomingStages.slice(0, 1);
+
+  stagesToShow.forEach(s => {
+    const list = (byStage[s] || []).filter(m =>
+      activeStagess.length > 0
+        ? (m.status === 'FINISHED' || m.status === 'IN_PLAY')
+        : true
+    ).slice(0, 16);
+    if (!list.length) return;
+    html += `<div class="match-section-title">${STAGE_LABELS[s] || s}</div>`;
+    html += list.map(m => renderMatchCard(m, owners)).join('');
+  });
+
   el.innerHTML = html || '<div class="empty">No match data available yet.</div>';
 }
 
-function renderMatchCard(g, owners) {
-  const homeName = g.homeTeam?.name_en || g.home_team || g.homeTeam || '?';
-  const awayName = g.awayTeam?.name_en || g.away_team || g.awayTeam || '?';
-  const ht = teamByApiName(homeName);
-  const at = teamByApiName(awayName);
+function renderMatchCard(m, owners) {
+  const homeName = m.homeTeam?.shortName || m.homeTeam?.name || '?';
+  const awayName = m.awayTeam?.shortName || m.awayTeam?.name || '?';
+  const ht = teamByApiName(m.homeTeam?.name || m.homeTeam?.shortName);
+  const at = teamByApiName(m.awayTeam?.name || m.awayTeam?.shortName);
   const hFlag = ht ? ht.flag : '🏳️';
   const aFlag = at ? at.flag : '🏳️';
-  const hCode = ht?.code, aCode = at?.code;
-  const hOwner = hCode ? owners[hCode] : null;
-  const aOwner = aCode ? owners[aCode] : null;
-  const isLive = g.status === 'live' || g.status === 'in_play';
-  const isFinished = g.status === 'finished' || g.status === 'completed' || g.played;
-  const hs = g.result?.home ?? g.homeScore ?? g.score?.home ?? null;
-  const as_ = g.result?.away ?? g.awayScore ?? g.score?.away ?? null;
-  const hasScore = hs !== null && as_ !== null && isFinished;
-  const dateStr = g.date || g.utcDate || g.datetime || '';
+  const hOwner = ht ? owners[ht.code] : null;
+  const aOwner = at ? owners[at.code] : null;
+  const isLive = m.status === 'IN_PLAY' || m.status === 'PAUSED';
+  const isFinished = m.status === 'FINISHED';
+  const hs = m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? null;
+  const as_ = m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? null;
+  const dateStr = m.utcDate || '';
   const dateFormatted = dateStr ? new Date(dateStr).toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
-  const scoreHtml = hasScore
+  const scoreHtml = (isFinished || isLive) && hs !== null
     ? `<div class="match-score ${isLive ? 'live' : ''}">${hs} – ${as_}</div>`
     : `<div class="match-score upcoming">${dateFormatted || 'TBC'}</div>`;
 
   return `<div class="match-card">
-    <div class="match-meta">${dateFormatted ? dateFormatted : ''}${isLive ? ' <span class="live-dot">LIVE</span>' : ''}</div>
+    <div class="match-meta">${dateFormatted}${isLive ? ' <span class="live-dot">LIVE</span>' : ''}</div>
     <div class="match-body">
       <div class="match-team">
         <div class="mt-name"><span class="mt-flag">${hFlag}</span>${homeName}</div>
